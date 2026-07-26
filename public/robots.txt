@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://date-quilt.yusuke8h.workers.dev/sitemap.xml
