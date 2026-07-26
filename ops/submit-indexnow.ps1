@@ -23,13 +23,41 @@ if ($Key -ne $KeyFiles[0].BaseName) {
     throw "IndexNow key file name and content do not match"
 }
 
+function Invoke-PublishedGet {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri
+    )
+
+    for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
+        try {
+            $Result = Invoke-WebRequest `
+                -Uri $Uri `
+                -SkipHttpErrorCheck `
+                -TimeoutSec 20
+            if ($Result.StatusCode -eq 200) {
+                return $Result
+            }
+        }
+        catch {
+            if ($Attempt -eq 5) { throw }
+        }
+
+        if ($Attempt -lt 5) {
+            Start-Sleep -Seconds $Attempt
+        }
+    }
+
+    throw "Published resource did not return HTTP 200 after retries: $Uri"
+}
+
 $KeyLocation = "$NormalizedBaseUrl/$Key.txt"
-$KeyResponse = Invoke-WebRequest -Uri $KeyLocation -TimeoutSec 20
+$KeyResponse = Invoke-PublishedGet -Uri $KeyLocation
 if ($KeyResponse.StatusCode -ne 200 -or $KeyResponse.Content.Trim() -ne $Key) {
     throw "Published IndexNow key file is unavailable or mismatched"
 }
 
-$SitemapResponse = Invoke-WebRequest -Uri "$NormalizedBaseUrl/sitemap.xml" -TimeoutSec 20
+$SitemapResponse = Invoke-PublishedGet -Uri "$NormalizedBaseUrl/sitemap.xml"
 [xml]$Sitemap = $SitemapResponse.Content
 $Urls = @($Sitemap.urlset.url.loc | ForEach-Object { [string]$_ })
 if ($Urls.Count -eq 0) {
